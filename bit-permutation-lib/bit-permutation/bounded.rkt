@@ -21,7 +21,13 @@
   [perm-invert (-> perm? perm?)]
   [perm-> (->* (perm?) #:rest (listof perm?) perm?)]
   [perm+ (->* (perm?) #:rest (listof perm?) perm?)]
-  [perm=? (->i ([p1 perm?] [p2 (p1) (same-size/c p1)]) [result boolean?])]))
+  [perm-mirror (->i ([perm perm?]) [result (perm) (same-size/c perm)])]
+  [perm=? (->i ([p1 perm?] [p2 (p1) (same-size/c p1)]) [result boolean?])]
+  [perm-inverse=? (->i ([p1 perm?] [p2 (p1) (same-size/c p1)]) [result boolean?])]
+  [perm-mirror=? (->i ([p1 perm?] [p2 (p1) (same-size/c p1)]) [result boolean?])]
+  [perm-inverse-mirror=? (->i ([p1 perm?] [p2 (p1) (same-size/c p1)]) [result boolean?])]
+  [perm-identity? (-> perm? boolean?)]
+  [perm-symmetric? (-> perm? boolean?)]))
 
 (require bit-permutation/bits)
 
@@ -129,15 +135,47 @@
     [(split size perms) (split size (map perm-invert perms))]
     [(seq size perms) (seq size (reverse (map perm-invert perms)))]))
 
+(define (perm-mirror perm)
+  (match perm
+    [(mask bits) (mask (bits-mirror bits))]
+    [(preshift perm offset) (preshift (perm-mirror perm) (- offset))]
+    [(postshift perm offset) (postshift (perm-mirror perm) (- offset))]
+    [(split size perms) (split size (map perm-mirror perms))]
+    [(seq size perms) (split size (map perm-mirror perms))]))
+
 (define (perm-> perm . perms)
   (seq (perm-size perm) (cons perm perms)))
 
 (define (perm+ perm . perms)
   (split (perm-size perm) (cons perm perms)))
 
+
+(define (perm-trace-bits p)
+  (let* ([size (perm-size p)]
+         [domain (domain p)])
+    (for/list ([index (bits-active-indices domain)])
+      (cons index (car (bits-active-indices (p (bit size index))))))))
+
 (define (perm=? p1 p2)
   (and (equal? (domain p1) (domain p2))
-       (equal? (codomain p1) (codomain p2))))
+       (equal? (codomain p1) (codomain p2))
+       (equal? (perm-trace-bits p1)
+               (perm-trace-bits p2))))
+
+(define (perm-inverse=? p1 p2)
+  (perm=? p1 (perm-invert p2)))
+
+(define (perm-mirror=? p1 p2)
+  (perm=? p1 (perm-mirror p2)))
+
+(define (perm-inverse-mirror=? p1 p2)
+  (perm=? p1 (perm-invert (perm-mirror p2))))
+
+(define (perm-identity? p)
+  (equal? (domain p) (codomain p)))
+
+(define (perm-symmetric? p)
+  (perm-mirror=? p p))
 
 (define/contract (bounded-preshift-offset/c perm)
   (-> perm? contract?)

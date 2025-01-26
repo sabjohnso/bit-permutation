@@ -111,8 +111,11 @@
          #:register-spacing [register-spacing (current-register-spacing)]
          #:flow-orientation [flow-orientation (current-flow-orientation)])
   (parameterize* ([current-bit-diameter bit-diameter]
-                  [current-bit-spacing (if bit-spacing bit-spacing (current-bit-diameter))]
-                  [current-register-spacing (if register-spacing register-spacing (* (perm-size split-perm) (current-bit-spacing)))]
+                  [current-bit-spacing
+                   (if bit-spacing bit-spacing (current-bit-diameter))]
+                  [current-register-spacing
+                   (if register-spacing register-spacing
+                     (* (perm-size split-perm) (current-bit-spacing)))]
                   [current-flow-orientation flow-orientation])
     (draw-perm split-perm (build-split-bit-colors split-perm inactive-color colors))))
 

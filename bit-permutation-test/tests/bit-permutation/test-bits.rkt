@@ -1,7 +1,7 @@
 #lang racket
 
 (module+ test
-  (require bit-permutation rackunit rackunit/spec)
+  (require bit-permutation/bits rackunit rackunit/spec)
 
   (describe "bits"
     (it "construct a bits object from a size (number of bits) and natural number not overflowing that size"
@@ -91,4 +91,9 @@
 
   (describe "bits-active-indices"
     (it "returns a list of indices that are on in the input bits"
-      (check-equal? (bits-active-indices (bits 4 #b0101)) '(0 2)))))
+      (check-equal? (bits-active-indices (bits 4 #b0101)) '(0 2))))
+
+  (describe "bits-mirror"
+    (it "returns the mirror image of the input bits"
+      (check-equal? (bits-mirror (bits 8 #b00000011))
+                    (bits 8 #b11000000)))))

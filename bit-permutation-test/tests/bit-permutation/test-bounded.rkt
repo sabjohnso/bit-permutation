@@ -180,6 +180,10 @@
     (it "requires at least one operand"
       (check-exn exn:fail? (thunk (perm+)))))
 
+  (describe "perm-mirror"
+    (it "produces a permutation that is a mirror image of the "
+      (void)))
+
   (describe "perm=?"
     (it "is an equivalence relation for permutations where shared domain and codomain"
       (define m1 (mask (bits 4 #b0011)))
@@ -190,7 +194,24 @@
 
       (check-true (perm=? m1 m1))
       (check-false (perm=? m1 m2))
-      (check-true (perm=? m1 p3))))
+      (check-true (perm=? m1 p3)))
+
+    (it "returns false if the bit traces are different"
+      (define p1 (postshift (mask (bits 4 #b0011)) 2))
+      (define p2 (perm+ (postshift (mask (bits 4 #b0001)) 3)
+                        (postshift (mask (bits 4 #b0010)) 1)))
+      (check-equal? (domain p1) (domain p2))
+      (check-equal? (codomain p1) (codomain p2))
+      (check-false (perm=? p1 p2))))
+
+  (describe "perm-inverse=?"
+    (void))
+
+  (describe "perm-mirror=?"
+    (void))
+
+  (describe "perm-inverse-mirror=?"
+    (void))
 
   (describe "perm-invert"
     (it "returns an inverse permutation"
@@ -203,4 +224,13 @@
       (check-true (perm=? (perm-invert p1) p2))
       (check-true (perm=? (perm-invert p2) p1))
 
-      (check-true (perm=? (perm-invert (perm-> p1 p2)) (perm-> p1 p2))))))
+      (check-true (perm=? (perm-invert (perm-> p1 p2)) (perm-> p1 p2)))))
+
+  (describe "perm-identity?"
+    (it "is a predicate on permutations"
+      (it "is true if the domain and codomain are equal"
+        (check-true (perm-identity? (mask (bits 4 #b0011))))
+        (check-true (perm-identity? (perm-> (postshift (mask (bits 4 #b0011)) 2)
+                                            (postshift (mask (bits 4 #b1100)) -2)))))
+      (it "is false if the domain and codomain are not equal"
+        (check-false (perm-identity?  (postshift (mask (bits 4 #b0011)) 2)))))))

@@ -12,7 +12,9 @@
   [bits-not bits-unary-operator/c]
   [bits-duplicate bits-duplication/c]
   [bits-shift bits-shift/c]
+  [bits-mirror bits-mirror/c]
   [bits-ref bits-ref/c]
+  [bits-set bits-set/c]
   [bits-count-leading-zeros bits-count/c]
   [bits-count-trailing-zeros bits-count/c]
   [bits-popcount bits-count/c]
@@ -53,6 +55,14 @@
   (match-let ([(bits size value) b])
     (bits size (bitwise-and (bitwise-not value) (sub1 (arithmetic-shift 1 size))))))
 
+(define bits-mirror/c (->i ([bits bits?]) [result (bits) (same-size/c bits)]))
+(define (bits-mirror b)
+  (for/fold ([new-bits (bits-zeros (bits-size b))])
+      ([index (in-range (bits-size b))])
+    (if (= 1 (bits-ref b index))
+        (bits-set new-bits (- (bits-size b) index 1) 1)
+      new-bits)))
+
 (define (bits-shift b offset)
   (match-let ([(bits size value) b])
     (bits size (arithmetic-shift value offset))))
@@ -69,6 +79,13 @@
 
 (define (bits-ref bs index)
   (bitwise-and (bits-value (bits-shift bs (- index))) 1))
+
+(define (bits-set bs index bit)
+  (if (= bit (bits-ref bs index)) bs
+    (match-let ([(bits size value) bs])
+      (if (zero? bit)
+          (bits size (bitwise-xor value (arithmetic-shift 1 index)))
+        (bits size (bitwise-ior value (arithmetic-shift 1 index)))))))
 
 (define (bits-count-leading-zeros b)
   (match-let ([(bits size value) b])
@@ -151,7 +168,11 @@
 
 (define bits-ref/c
   (->i ([bits bits?] [index (bits) (and/c natural-number/c (</c (bits-size bits)))])
-      [result bit/c]))
+       [result bit/c]))
+
+(define bits-set/c
+  (->i ([bits bits?] [index (bits) (and/c natural-number/c (</c (bits-size bits)))] [bit bit/c])
+       [result (bits) (same-size/c bits)]))
 
 (define bits-shift/c
   (->i ([b bits?] [offset exact-integer?])
