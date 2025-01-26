@@ -182,7 +182,10 @@
 
   (describe "perm-mirror"
     (it "produces a permutation that is a mirror image of the "
-      (void)))
+      (check-equal? (perm-mirror (mask (bits 5 #b00011)))
+                    (mask (bits 5  #b11000)))
+      (check-true (perm=? (perm-mirror (postshift (mask (bits 8 #b00000011))  3))
+                          (postshift (mask (bits 8 #b11000000)) -3)))))
 
   (describe "perm=?"
     (it "is an equivalence relation for permutations where shared domain and codomain"

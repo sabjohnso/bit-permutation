@@ -21,6 +21,7 @@
   [perm-invert (-> perm? perm?)]
   [perm-> (->* (perm?) #:rest (listof perm?) perm?)]
   [perm+ (->* (perm?) #:rest (listof perm?) perm?)]
+  [perm-trace-bits (-> perm? (listof (cons/c natural-number/c natural-number/c)))]
   [perm-mirror (->i ([perm perm?]) [result (perm) (same-size/c perm)])]
   [perm=? (->i ([p1 perm?] [p2 (p1) (same-size/c p1)]) [result boolean?])]
   [perm-inverse=? (->i ([p1 perm?] [p2 (p1) (same-size/c p1)]) [result boolean?])]
@@ -51,7 +52,8 @@
 (struct preshift
   (perm offset)
   #:property prop:procedure
-  (λ (this arg) (apply-preshift this arg)))
+  (λ (this arg) (apply-preshift this arg))
+  #:transparent)
 
 (define (apply-preshift perm arg)
   (match-let* ([(preshift perm offset) perm]
@@ -62,7 +64,8 @@
 (struct postshift
   (perm offset)
   #:property prop:procedure
-  (λ (this arg) (apply-postshift this arg)))
+  (λ (this arg) (apply-postshift this arg))
+  #:transparent)
 
 (define (apply-postshift perm arg)
   (match-let* ([(postshift perm offset) perm]
@@ -73,7 +76,8 @@
 (struct split
   (size perms)
   #:property prop:procedure
-  (λ (this arg) (apply-split this arg)))
+  (λ (this arg) (apply-split this arg))
+  #:transparent)
 
 (define (apply-split perm arg)
   (let ([size (split-size perm)]
@@ -86,7 +90,8 @@
 (struct seq
   (size perms)
   #:property prop:procedure
-  (λ (this arg) (apply-seq this arg)))
+  (λ (this arg) (apply-seq this arg))
+  #:transparent)
 
 (define (apply-seq perm arg)
   (let ([size (seq-size perm)]
@@ -141,7 +146,7 @@
     [(preshift perm offset) (preshift (perm-mirror perm) (- offset))]
     [(postshift perm offset) (postshift (perm-mirror perm) (- offset))]
     [(split size perms) (split size (map perm-mirror perms))]
-    [(seq size perms) (split size (map perm-mirror perms))]))
+    [(seq size perms) (seq size (map perm-mirror perms))]))
 
 (define (perm-> perm . perms)
   (seq (perm-size perm) (cons perm perms)))
