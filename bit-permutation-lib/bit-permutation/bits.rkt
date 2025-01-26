@@ -77,7 +77,8 @@
             [(zero? (bitwise-and value (nbits-left size n)))
              (recur (arithmetic-shift value n) (* 2 n) (+ n accum))]
             [else (recur value (quotient n 2) accum)]))
-    (recur value 1 0)))
+    (if (zero? value) size
+      (recur value 1 0))))
 
 (define (bits-count-trailing-zeros b)
   (match-let ([(bits size value) b])

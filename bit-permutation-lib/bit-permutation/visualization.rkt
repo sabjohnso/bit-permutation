@@ -95,8 +95,8 @@
   (case (current-flow-orientation)
     [(bottom-to-top) (values ct-find cb-find)]
     [(top-to-bottom) (values cb-find ct-find)]
-    [(left-to-right) (values lc-find rc-find)]
-    [(right-to-left) (values rc-find lc-find)]
+    [(left-to-right) (values rc-find lc-find)]
+    [(right-to-left) (values lc-find rc-find)]
     [else (error "Failed to select finders")]))
 
 (define (build-codomain-bit-colors bit-colors inverse-bit-tracks)
