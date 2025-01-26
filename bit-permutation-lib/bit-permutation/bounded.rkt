@@ -8,6 +8,7 @@
  (except-out (struct-out seq) seq)
  (contract-out
   [perm? predicate/c]
+  [perm-sizeof/c contract?]
   [domain (-> perm? bits?)]
   [codomain (-> perm? bits?)]
   [perm-size (-> perm? exact-positive-integer?)]
@@ -16,7 +17,11 @@
   [postshift postshift/c]
   [split split/c]
   [seq  seq/c]
-  [perm-duplicate (-> perm? perm?)]))
+  [perm-duplicate (-> perm? perm?)]
+  [perm-invert (-> perm? perm?)]
+  [perm-> (->* (perm?) #:rest (listof perm?) perm?)]
+  [perm+ (->* (perm?) #:rest (listof perm?) perm?)]
+  [perm=? (->i ([p1 perm?] [p2 (p1) (same-size/c p1)]) [result boolean?])]))
 
 (require bit-permutation/bits)
 
@@ -115,6 +120,24 @@
     [(preshift perm offset) (preshift (perm-duplicate perm) offset)]
     [(postshift perm offset) (postshift (perm-duplicate perm) offset)]
     [(split size perms) (split (* 2 size) (map perm-duplicate perms))]))
+
+(define (perm-invert perm)
+  (match perm
+    [(mask bits) (mask bits)]
+    [(preshift perm offset) (postshift (perm-invert perm) (- offset))]
+    [(postshift perm offset) (preshift (perm-invert perm) (- offset))]
+    [(split size perms) (split size (map perm-invert perms))]
+    [(seq size perms) (seq size (reverse (map perm-invert perms)))]))
+
+(define (perm-> perm . perms)
+  (seq (perm-size perm) (cons perm perms)))
+
+(define (perm+ perm . perms)
+  (split (perm-size perm) (cons perm perms)))
+
+(define (perm=? p1 p2)
+  (and (equal? (domain p1) (domain p2))
+       (equal? (codomain p1) (codomain p2))))
 
 (define/contract (bounded-preshift-offset/c perm)
   (-> perm? contract?)

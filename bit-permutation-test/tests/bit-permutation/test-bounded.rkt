@@ -160,4 +160,47 @@
         (define p2 (perm-duplicate p1))
         (check-equal? (domain p2) (bits-duplicate (domain p1)))
         (check-equal? (codomain p2) (bits-duplicate (codomain p1)))
-        (check-equal? (perm-size p2) (* 2 (perm-size p1)))))))
+        (check-equal? (perm-size p2) (* 2 (perm-size p1))))))
+
+  (describe "perm->"
+    (it "is a variadic operator building a seq of permutations"
+      (define p1 (postshift (mask (bits 4 #b0011))  2))
+      (define p2 (postshift (mask (bits 4 #b1100)) -2))
+      (check-true (perm? (perm-> p1)))
+      (check-true (perm? (perm-> p1 p2))))
+    (it "requires at least one operand"
+      (check-exn exn:fail? (thunk (perm->)))))
+
+  (describe "perm+"
+    (it "is a variadic operator building a split of permutations"
+      (define p1 (mask (bits 4 #b0011)))
+      (define p2 (mask (bits 4 #b1100)))
+      (check-true (perm? (perm+ p1)))
+      (check-true (perm? (perm+ p1 p2))))
+    (it "requires at least one operand"
+      (check-exn exn:fail? (thunk (perm+)))))
+
+  (describe "perm=?"
+    (it "is an equivalence relation for permutations where shared domain and codomain"
+      (define m1 (mask (bits 4 #b0011)))
+      (define m2 (mask (bits 4 #b1100)))
+      (define p1 (postshift m1  2))
+      (define p2 (postshift m2 -2))
+      (define p3 (perm-> p1 p2))
+
+      (check-true (perm=? m1 m1))
+      (check-false (perm=? m1 m2))
+      (check-true (perm=? m1 p3))))
+
+  (describe "perm-invert"
+    (it "returns an inverse permutation"
+      (define p1 (postshift (mask (bits 4 #b0011))  2))
+      (define p2 (postshift (mask (bits 4 #b1100)) -2))
+
+      (check-equal? (domain p1) (codomain p2))
+      (check-equal? (codomain p1) (domain p2))
+
+      (check-true (perm=? (perm-invert p1) p2))
+      (check-true (perm=? (perm-invert p2) p1))
+
+      (check-true (perm=? (perm-invert (perm-> p1 p2)) (perm-> p1 p2))))))
