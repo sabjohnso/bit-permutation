@@ -22,13 +22,15 @@
   [perm-> (->* (perm?) #:rest (listof perm?) perm?)]
   [perm+ (->* (perm?) #:rest (listof perm?) perm?)]
   [perm-trace-bits (-> perm? (listof (cons/c natural-number/c natural-number/c)))]
-  [perm-mirror (->i ([perm perm?]) [result (perm) (same-size/c perm)])]
-  [perm=? (->i ([p1 perm?] [p2 (p1) (same-size/c p1)]) [result boolean?])]
-  [perm-inverse=? (->i ([p1 perm?] [p2 (p1) (same-size/c p1)]) [result boolean?])]
-  [perm-mirror=? (->i ([p1 perm?] [p2 (p1) (same-size/c p1)]) [result boolean?])]
-  [perm-inverse-mirror=? (->i ([p1 perm?] [p2 (p1) (same-size/c p1)]) [result boolean?])]
+  [perm-mirror (->i ([perm perm?]) [result (perm) (same-size-perm/c perm)])]
+  [perm=? (->i ([p1 perm?] [p2 (p1) (same-size-perm/c p1)]) [result boolean?])]
+  [perm-inverse=? (->i ([p1 perm?] [p2 (p1) (same-size-perm/c p1)]) [result boolean?])]
+  [perm-mirror=? (->i ([p1 perm?] [p2 (p1) (same-size-perm/c p1)]) [result boolean?])]
+  [perm-inverse-mirror=? (->i ([p1 perm?] [p2 (p1) (same-size-perm/c p1)]) [result boolean?])]
   [perm-identity? (-> perm? boolean?)]
-  [perm-symmetric? (-> perm? boolean?)]))
+  [perm-symmetric? (-> perm? boolean?)]
+  [perm-zip (-> perm? perm?)]
+  [disjoint? (->* () () #:rest (listof perm?) boolean?)]))
 
 (require bit-permutation/bits)
 
@@ -161,6 +163,40 @@
     (for/list ([index (bits-active-indices domain)])
       (cons index (car (bits-active-indices (p (bit size index))))))))
 
+(define (perm-zip p)
+  (match p
+    [(mask bits) (mask bits)]
+    [(preshift perm offset) (preshift (perm-zip perm) offset)]
+    [(postshift perm offset) (postshift (perm-zip perm) offset)]
+    [(split size perms) (perm-zip-split (split size perms))]
+    [(seq size perms) (seq size (map perm-zip perms))]))
+
+
+(define (perm-zip-split split-perm)
+  (match split-perm
+    [(split size (list (seq _ (list permss ...)) ...))
+     #:when (zip-compatible? permss)
+     (define (recur n permss accum)
+       (displayln accum)
+       (if (zero? n) (seq size (reverse accum))
+         (recur (sub1 n) (map cdr permss)
+                (cons (split size (map car permss))
+                      accum))))
+     (recur (length (car permss)) permss '())]
+    [(split size perms) (split size (map perm-zip perms))]))
+
+(define (zip-compatible? permss)
+  (define (recur n permss)
+    (or (zero? n)
+        (let ([perms (map car permss)])
+          (and (apply (disjoint? perms))
+               (recur (sub1 n) (map cdr perms))))))
+  (if (< (length permss) 2) #f
+    (let ([n (length (car permss))])
+      (and (for/and ([perms permss])
+             (= n (length perms)))
+           (recur n permss)))))
+
 (define (perm=? p1 p2)
   (and (equal? (domain p1) (domain p2))
        (equal? (codomain p1) (codomain p2))
@@ -181,6 +217,18 @@
 
 (define (perm-symmetric? p)
   (perm-mirror=? p p))
+
+(define (disjoint? . ps)
+  (cond [(= 2 (length ps))
+         (let ([p1 (car ps)]
+                  [p2 (cadr ps)])
+              (and (bits-empty? (bits-and (domain p1) (domain p2)))
+                   (bits-empty? (bits-and (codomain p1) (codomain p2)))))]
+        [(< (length ps) 2) #t]
+        [else (and (let ([p1 (car ps)])
+                     (for/and ([p2 (cdr ps)])
+                       (disjoint? p1 p2)))
+                   (apply disjoint? (cdr ps)))]))
 
 (define/contract (bounded-preshift-offset/c perm)
   (-> perm? contract?)
@@ -204,18 +252,14 @@
                 [(negative? offset) (<= offset (bits-count-trailing-zeros (codomain perm)))]
                 [else #t])))))
 
-(define/contract (same-size/c perm)
+(define/contract (same-size-perm/c perm)
   (-> perm? contract?)
   (make-flat-contract
-   #:name (build-compound-type-name 'same-size/c perm)
+   #:name (build-compound-type-name 'same-size-perm/c perm)
    #:first-order
    (λ (arg)
      (and (perm? arg)
           (= (perm-size arg) (perm-size perm))))))
-
-(define (disjoint? p1 p2)
-  (and (bits-empty? (bits-and (domain p1) (domain p2)))
-       (bits-empty? (bits-and (codomain p1) (codomain p2)))))
 
 (define/contract (disjoint-perm-list/c size)
   (-> exact-positive-integer? contract?)
@@ -262,11 +306,11 @@
 
 (define preshift/c
   (->i ([perm perm?] [offset (perm) (bounded-preshift-offset/c perm)])
-       [result (perm) (and/c preshift? (same-size/c perm))]))
+       [result (perm) (and/c preshift? (same-size-perm/c perm))]))
 
 (define postshift/c
   (->i ([perm perm?] [offset (perm) (bounded-postshift-offset/c perm)])
-       [result (perm) (and/c postshift? (same-size/c perm))]))
+       [result (perm) (and/c postshift? (same-size-perm/c perm))]))
 
 (define split/c
   (->i ([size exact-positive-integer?] [perms (size) (disjoint-perm-list/c size)])

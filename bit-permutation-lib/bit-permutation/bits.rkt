@@ -55,7 +55,7 @@
   (match-let ([(bits size value) b])
     (bits size (bitwise-and (bitwise-not value) (sub1 (arithmetic-shift 1 size))))))
 
-(define bits-mirror/c (->i ([bits bits?]) [result (bits) (same-size/c bits)]))
+(define bits-mirror/c (->i ([bits bits?]) [result (bits) (same-size-bits/c bits)]))
 (define (bits-mirror b)
   (for/fold ([new-bits (bits-zeros (bits-size b))])
       ([index (in-range (bits-size b))])
@@ -141,10 +141,10 @@
      #:first-order (λ (arg) (and (exact-nonnegative-integer? arg)
                                  (< arg overflow-value))))))
 
-(define/contract (same-size/c bits)
+(define/contract (same-size-bits/c bits)
   (-> bits? contract?)
   (make-flat-contract
-   #:name (build-compound-type-name 'same-size/c)
+   #:name (build-compound-type-name 'same-size-bits/c)
    #:first-order (λ (arg) (and (bits? arg) (= (bits-size arg) (bits-size bits))))))
 
 (define/contract (twice-the-size/c bits)
@@ -154,11 +154,11 @@
    #:first-order (λ (arg) (and (bits? arg) (= (bits-size arg) (* 2 (bits-size bits)))))))
 
 (define bits-binary-operator/c
-  (->i ([b1 bits?] [b2 (b1) (same-size/c b1)])
-       [result (b1) (same-size/c b1)]))
+  (->i ([b1 bits?] [b2 (b1) (same-size-bits/c b1)])
+       [result (b1) (same-size-bits/c b1)]))
 
 (define bits-unary-operator/c
-  (->i ([b bits?]) [result (b) (same-size/c b)]))
+  (->i ([b bits?]) [result (b) (same-size-bits/c b)]))
 
 (define bits-constructor/c
   (->i ([size exact-positive-integer?] [value (size) (not-overflowing/c size)])
@@ -172,11 +172,11 @@
 
 (define bits-set/c
   (->i ([bits bits?] [index (bits) (and/c natural-number/c (</c (bits-size bits)))] [bit bit/c])
-       [result (bits) (same-size/c bits)]))
+       [result (bits) (same-size-bits/c bits)]))
 
 (define bits-shift/c
   (->i ([b bits?] [offset exact-integer?])
-       [result (b) (same-size/c b)]))
+       [result (b) (same-size-bits/c b)]))
 
 (define bits-duplication/c
   (->i ([b bits?])

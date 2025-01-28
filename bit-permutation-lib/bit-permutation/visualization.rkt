@@ -1,6 +1,7 @@
 #lang racket
 
 (provide
+ color-interpolator%
  (contract-out
   [current-bit-diameter (parameter/c exact-positive-integer?)]
   [current-bit-spacing (parameter/c (or/c natural-number/c #f))]
@@ -11,7 +12,8 @@
   [draw-bit draw-bit-signature/c]
   [track-bits track-bits-signature/c]
   [draw-perm draw-perm-signature/c]
-  [draw-split draw-split-signature/c]))
+  [draw-split draw-split-signature/c]
+  [draw-seq draw-seq-signature/c]))
 
 (require bit-permutation pict srfi/26 racket/draw racket/hash)
 
@@ -52,7 +54,7 @@
       (let-values ([(domain domain-bits) (draw-register (domain perm) bit-colors)]
                    [(codomain codomain-bits)
                     (draw-register (codomain perm)
-                                   (build-codomain-bit-colors bit-colors inverse-bit-tracks))])
+                                   (build-codomain-bit-colors bit-colors bit-tracks))])
         ((make-composite-link-fn domain-bits codomain-bits bit-tracks bit-colors)
          (make-registers domain codomain))))))
 
@@ -99,10 +101,11 @@
     [(right-to-left) (values lc-find rc-find)]
     [else (error "Failed to select finders")]))
 
-(define (build-codomain-bit-colors bit-colors inverse-bit-tracks)
-  (λ (index state)
-    (if (zero? state) (bit-colors index state)
-      (bit-colors (cdr (assoc index inverse-bit-tracks)) state))))
+(define (build-codomain-bit-colors bit-colors bit-traces)
+  (let ([inverse-bit-traces (invert-alist bit-traces)])
+    (λ (index state)
+      (if (zero? state) (bit-colors index state)
+        (bit-colors (cdr (assoc index inverse-bit-traces)) state)))))
 
 (define (draw-split
          split-perm inactive-color colors
@@ -118,6 +121,35 @@
                      (* (perm-size split-perm) (current-bit-spacing)))]
                   [current-flow-orientation flow-orientation])
     (draw-perm split-perm (build-split-bit-colors split-perm inactive-color colors))))
+
+(define (draw-seq seq-perm bit-colors
+         #:bit-diameter [bit-diameter (current-bit-diameter)]
+         #:bit-spacing [bit-spacing (current-bit-diameter)]
+         #:register-spacing [register-spacing (current-register-spacing)]
+         #:flow-orientation [flow-orientation (current-flow-orientation)])
+  (parameterize* ([current-bit-diameter bit-diameter]
+                  [current-bit-spacing
+                   (if bit-spacing bit-spacing (current-bit-diameter))]
+                  [current-register-spacing
+                   (if register-spacing register-spacing
+                     (* (perm-size seq-perm) (current-bit-spacing)))]
+                  [current-flow-orientation flow-orientation])
+    (define (recur perms bit-colors domain-bits pict)
+      (if (null? perms) pict
+        (let*-values ([(perm) (car perms)]
+                      [(bit-traces) (perm-trace-bits perm)]
+                      [(codomain-bit-colors) (build-codomain-bit-colors bit-colors bit-traces)]
+                      [(codomain codomain-bits) (draw-register (codomain perm) codomain-bit-colors)])
+          (recur (cdr perms)
+                 codomain-bit-colors
+                 codomain-bits
+                 ((make-composite-link-fn domain-bits codomain-bits bit-traces bit-colors)
+                  (make-registers pict codomain))))))
+    (let*-values ([(perms) (seq-perms seq-perm)]
+                  [(perm) (car perms)]
+                  [(bit-traces) (perm-trace-bits perm)]
+                  [(domain domain-bits) (draw-register (domain perm) bit-colors)])
+      (recur perms bit-colors domain-bits domain))))
 
 (define (build-split-bit-colors split-perm inactive-color colors)
   (let ([color-table (build-split-color-table split-perm colors)])
@@ -163,6 +195,20 @@
   (for/list ([kv alist])
     (cons (cdr kv) (car kv))))
 
+(define color-interpolator%
+  (class object%
+    (super-new)
+    (init-field start-color end-color)
+    (define (interpolate x c1 c2)
+      (exact-round (+ (* (- 1 x) c1) (* x c2))))
+    (define/public (call x)
+      (cond [(< x 0) start-color]
+            [(> x 1) end-color]
+            [else (make-object color%
+                    (interpolate x (send start-color red) (send end-color red))
+                    (interpolate x (send start-color green) (send end-color green))
+                    (interpolate x (send start-color blue) (send end-color blue)))]))))
+
 (define/contract (length=/c n)
   (-> natural-number/c contract?)
   (make-flat-contract
@@ -183,6 +229,8 @@
     #:register-spacing [register-spacing (or/c real? #f)]
     #:flow-orientation [floworientation flow-orientation/c])
    [result pict?]))
+
+
 
 (define register-orientation/c
   (or/c 'horizontal 'vertical))
@@ -207,6 +255,21 @@
 
 (define draw-perm-signature/c
   (->* (perm? bit-colors/c)
+       (#:bit-diameter exact-positive-integer?
+        #:bit-spacing (or/c exact-positive-integer? #f)
+        #:register-spacing (or/c exact-positive-integer? #f)
+        #:flow-orientation flow-orientation/c)
+       pict?))
+
+(define nonempty-seq-perm/c
+  (make-flat-contract
+   #:name 'nonempty-seq-perm/c
+   #:first-order (λ (arg)
+                   (and (seq? arg)
+                        (not (null? (seq-perms arg)))))))
+
+(define draw-seq-signature/c
+  (->* (nonempty-seq-perm/c bit-colors/c)
        (#:bit-diameter exact-positive-integer?
         #:bit-spacing (or/c exact-positive-integer? #f)
         #:register-spacing (or/c exact-positive-integer? #f)
